@@ -1,0 +1,468 @@
+Perfect. Let's break the flow into one function at a time. For each function I'll give:
+
+File Name
+Function Code
+Who calls it
+What it does
+Next function called
+1. WC_Payment_Gateways::init()
+File
+woocommerce/includes/class-wc-payment-gateways.php
+Function
+public function init() {
+
+    $load_gateways = array(
+        'WC_Gateway_BACS',
+        'WC_Gateway_Cheque',
+        'WC_Gateway_COD',
+    );
+
+    foreach ( $load_gateways as $gateway ) {
+
+        if ( is_string( $gateway ) && class_exists( $gateway ) ) {
+
+            $gateway = new $gateway();
+        }
+
+        $this->payment_gateways[] = $gateway;
+    }
+}
+What it does
+
+Loads all payment gateways.
+
+For COD:
+
+new WC_Gateway_COD();
+
+is executed.
+
+Next Function
+WC_Gateway_COD::__construct()
+2. __construct()
+File
+includes/gateways/cod/class-wc-gateway-cod.php
+Function
+public function __construct() {
+
+    $this->id = self::ID;
+
+    $this->init();
+
+    add_action(
+        'woocommerce_update_options_payment_gateways_' . $this->id,
+        array( $this, 'process_admin_options' )
+    );
+}
+What it does
+
+Creates COD object.
+
+Registers hooks.
+
+Calls:
+
+$this->init();
+Next Function
+private function init()
+3. init()
+File
+class-wc-gateway-cod.php
+Function
+private function init() {
+
+    $this->setup_properties();
+
+    $this->init_form_fields();
+
+    $this->init_settings();
+
+    $this->title =
+        $this->get_option( 'title' );
+
+    $this->description =
+        $this->get_option( 'description' );
+}
+What it does
+
+Initializes COD configuration.
+
+Calls:
+
+setup_properties()
+init_form_fields()
+init_settings()
+Next Function
+setup_properties()
+4. setup_properties()
+File
+class-wc-gateway-cod.php
+Function
+protected function setup_properties() {
+
+    $this->id = self::ID;
+
+    $this->icon = '';
+
+    $this->method_title =
+        __( 'Cash on delivery', 'woocommerce' );
+
+    $this->has_fields = false;
+}
+What it does
+
+Sets gateway properties.
+
+$this->id
+$this->icon
+$this->method_title
+Next Function
+init_form_fields()
+5. init_form_fields()
+Function
+public function init_form_fields() {
+
+    $this->form_fields = array(
+
+        'enabled' => array(
+            'title' => 'Enable'
+        ),
+
+        'title' => array(
+            'title' => 'Title'
+        ),
+
+        'description' => array(
+            'title' => 'Description'
+        )
+    );
+}
+What it does
+
+Creates COD settings page fields.
+
+Admin sees:
+
+Enable COD
+Title
+Description
+Instructions
+Next Function
+init_settings()
+6. init_settings()
+File
+includes/abstracts/abstract-wc-settings-api.php
+Function
+public function init_settings() {
+
+    $this->settings = get_option(
+        $this->get_option_key(),
+        null
+    );
+}
+What it does
+
+Loads database values.
+
+Reads:
+
+woocommerce_cod_settings
+
+Example:
+
+enabled=yes
+title=Cash on Delivery
+Next Function
+Checkout Opens
+7. get_available_payment_gateways()
+File
+includes/class-wc-payment-gateways.php
+Function
+public function get_available_payment_gateways() {
+
+    foreach ( $this->payment_gateways as $gateway ) {
+
+        if ( $gateway->is_available() ) {
+
+            $available_gateways[] = $gateway;
+        }
+    }
+
+    return $available_gateways;
+}
+What it does
+
+Checks every payment gateway.
+
+Calls:
+
+$gateway->is_available()
+
+For COD:
+
+WC_Gateway_COD::is_available()
+Next Function
+is_available()
+8. is_available()
+Function
+public function is_available() {
+
+    if ( 'yes' !== $this->enabled ) {
+        return false;
+    }
+
+    return parent::is_available();
+}
+What it does
+
+Checks:
+
+enabled=yes?
+
+Checks:
+
+shipping methods
+
+Checks:
+
+virtual order
+
+Calls:
+
+get_matching_rates()
+Next Function
+get_matching_rates()
+9. get_matching_rates()
+Function
+private function get_matching_rates(
+    $rate_ids,
+    $package
+)
+What it does
+
+Matches:
+
+Flat Rate
+Free Shipping
+Local Pickup
+
+against
+
+Allowed Shipping Methods
+
+If match:
+
+return true;
+
+Else:
+
+return false;
+Next Function
+Customer Place Order
+10. WC_Checkout::process_checkout()
+File
+includes/class-wc-checkout.php
+Function
+public function process_checkout()
+What it does
+
+Validates checkout.
+
+Creates order.
+
+Calls:
+
+process_order_payment()
+Next Function
+process_order_payment()
+11. process_order_payment()
+Function
+protected function process_order_payment(
+    $order_id,
+    $payment_method
+)
+Important Code
+$result = $available_gateways[
+    $payment_method
+]->process_payment(
+    $order_id
+);
+
+For COD:
+
+WC_Gateway_COD::process_payment()
+Next Function
+process_payment()
+12. process_payment()
+File
+class-wc-gateway-cod.php
+Function
+public function process_payment(
+    $order_id
+)
+Step 1
+$order = wc_get_order(
+    $order_id
+);
+Next
+wc_get_order()
+13. wc_get_order()
+File
+includes/wc-order-functions.php
+Function
+function wc_get_order(
+    $the_order = false
+)
+What it does
+
+Returns:
+
+WC_Order Object
+Next
+$order->get_total()
+14. get_total()
+File
+includes/abstracts/abstract-wc-order.php
+Function
+public function get_total()
+What it does
+
+Gets order amount.
+
+Example:
+
+500
+Next
+$order->has_downloadable_item()
+15. has_downloadable_item()
+Function
+public function has_downloadable_item()
+What it does
+
+Checks:
+
+Downloadable Product?
+
+Returns:
+
+true
+
+or
+
+false
+Next
+$order->update_status()
+16. update_status()
+File
+includes/class-wc-order.php
+Function
+public function update_status(
+    $new_status,
+    $note
+)
+Example
+$order->update_status(
+    'processing',
+    'Payment to be made upon delivery.'
+);
+What it does
+
+Updates database.
+
+Adds order note.
+
+Next
+WC()->cart->empty_cart()
+17. empty_cart()
+File
+includes/class-wc-cart.php
+Function
+public function empty_cart()
+What it does
+
+Removes all cart items.
+
+Next
+get_return_url()
+18. get_return_url()
+File
+abstract-wc-payment-gateway.php
+Function
+public function get_return_url(
+    $order = null
+)
+What it does
+
+Builds:
+
+Thank You Page URL
+
+Example:
+
+/order-received/123/
+Next
+thankyou_page()
+19. thankyou_page()
+File
+class-wc-gateway-cod.php
+Function
+public function thankyou_page()
+What it does
+
+Shows:
+
+$this->instructions
+
+Customer sees:
+
+Pay cash upon delivery
+Next
+email_instructions()
+20. email_instructions()
+File
+class-wc-gateway-cod.php
+Function
+public function email_instructions(
+    $order,
+    $sent_to_admin,
+    $plain_text
+)
+What it does
+
+Adds COD instructions into order email.
+
+Example:
+
+Please pay cash on delivery.
+Final Complete Execution Chain
+WC_Payment_Gateways::init()
+ ↓
+new WC_Gateway_COD()
+ ↓
+__construct()
+ ↓
+init()
+ ↓
+setup_properties()
+ ↓
+init_form_fields()
+ ↓
+init_settings()
+ ↓
+get_available_payment_gateways()
+ ↓
+is_available()
+ ↓
+get_matching_rates()
+ ↓
+process_checkout()
+ ↓
+process_order_payment()
+ ↓
+process_payment()
+ ↓
+wc_get_order()
+ ↓
+get_total()
+ ↓
+has_downloadable_item()M
